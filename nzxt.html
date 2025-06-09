@@ -2,14 +2,12 @@
 <html>
 <head>
   <meta charset="UTF-8" />
-  <title>Kraken Display + PC Logger</title>
+  <title>Kraken CPU Temp + PC Logger</title>
   <style>
     html, body {
-      margin: 0;
-      padding: 0;
+      margin: 0; padding: 0;
       background: #000;
-      width: 100%;
-      height: 100%;
+      width: 100%; height: 100%;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -23,38 +21,36 @@
 </head>
 <body>
   <div id="display">--°F CPU</div>
-
   <script>
     const el = document.getElementById('display');
     const params = new URLSearchParams(window.location.search);
     const isKraken = params.get('kraken') === '1';
     let lastData = null;
 
+    // PC browser mode: log data every 5s
     if (!isKraken) {
-      // Log monitoring data every 5 seconds when not on Kraken
+      el.textContent = 'PC MODE – check console logs';
       setInterval(() => {
         if (lastData) {
-          console.log('NZXT Monitoring Data:', lastData);
+          console.log('CAM Monitoring Data:', lastData);
         } else {
-          console.log('Monitoring data not yet received from CAM.');
+          console.log('Waiting for CAM data (only works in Kraken mode)…');
         }
       }, 5000);
-      el.textContent = 'PC MODE – check console logs';
     }
 
-    // Setup monitoring callback
-    if (window.nzxt && window.nzxt.v1 && typeof window.nzxt.v1.onMonitoringDataUpdate === 'function') {
+    // Kraken/PC shared listener (but onMonitoringDataUpdate only works in Kraken)
+    if (window.nzxt?.v1?.onMonitoringDataUpdate) {
       window.nzxt.v1.onMonitoringDataUpdate = (data) => {
-        lastData = data; // store latest data for logging
-
+        lastData = data;
         if (isKraken) {
-          const tempC = data.cpus.package.temp;
-          const tempF = Math.round((tempC * 9/5) + 32);
+          const tempC = data.cpus?.package?.temp;
+          const tempF = tempC !== undefined ? Math.round((tempC * 9/5) + 32) : '--';
           el.textContent = `${tempF}°F CPU`;
         }
       };
     } else {
-      console.warn('NZXT CAM monitoring API not available. Ensure CAM ≥ 4.50.0 and Kraken integration enabled.');
+      console.warn('NZXT CAM API not available. Make sure CAM ≥ 4.50.0 and this page is loaded via Kraken Web Integration.');
     }
   </script>
 </body>
