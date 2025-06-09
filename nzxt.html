@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="UTF-8" />
-  <title>Kraken Test Display</title>
+  <title>Kraken Display + PC Logger</title>
   <style>
     html, body {
       margin: 0;
@@ -10,37 +10,51 @@
       background: #000;
       width: 100%;
       height: 100%;
-      overflow: hidden;
       display: flex;
       align-items: center;
       justify-content: center;
     }
-    #test {
+    #display {
       font-family: sans-serif;
-      font-size: 5vw;
+      font-size: 6vw;
       color: #0f0;
     }
   </style>
 </head>
 <body>
-  <div id="test">Loading...</div>
+  <div id="display">--°F CPU</div>
 
   <script>
+    const el = document.getElementById('display');
     const params = new URLSearchParams(window.location.search);
     const isKraken = params.get('kraken') === '1';
-    const el = document.getElementById('test');
+    let lastData = null;
 
-    if (isKraken) {
-      // Clear "Loading..." and show "TEST" once confirmed on device
-      el.textContent = 'TEST';
-    } else {
-      // This is the configuration/browser view
-      el.textContent = 'CONFIG MODE — will show “TEST” on Kraken display';
+    if (!isKraken) {
+      // Log monitoring data every 5 seconds when not on Kraken
+      setInterval(() => {
+        if (lastData) {
+          console.log('NZXT Monitoring Data:', lastData);
+        } else {
+          console.log('Monitoring data not yet received from CAM.');
+        }
+      }, 5000);
+      el.textContent = 'PC MODE – check console logs';
     }
 
-    // Log the Kraken display’s width/height (provided by CAM)
-    if (window.nzxt && window.nzxt.v1) {
-      console.log('Kraken display size:', window.nzxt.v1.width, '×', window.nzxt.v1.height);
+    // Setup monitoring callback
+    if (window.nzxt && window.nzxt.v1 && typeof window.nzxt.v1.onMonitoringDataUpdate === 'function') {
+      window.nzxt.v1.onMonitoringDataUpdate = (data) => {
+        lastData = data; // store latest data for logging
+
+        if (isKraken) {
+          const tempC = data.cpus.package.temp;
+          const tempF = Math.round((tempC * 9/5) + 32);
+          el.textContent = `${tempF}°F CPU`;
+        }
+      };
+    } else {
+      console.warn('NZXT CAM monitoring API not available. Ensure CAM ≥ 4.50.0 and Kraken integration enabled.');
     }
   </script>
 </body>
